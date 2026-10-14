@@ -1,0 +1,13 @@
+---
+title: "May 2026: Alerts merged, Silent Payments"
+date: 2026-05-31
+summary: "The alerts tool landed in peer-observer, and I fixed a bug in BDK's Silent Payments scanner."
+type: update
+---
+
+The alerts tool is in, and I spent some time with Silent Payments.
+
+- [#383](https://github.com/peer-observer/peer-observer/pull/383), the alerts tool, got merged in peer-observer.
+- Did another review round on [#379](https://github.com/peer-observer/peer-observer/pull/379), the IPC extractor, which also got merged.
+- Found that BDK-SP's `scan-rpc` ignored the wallet birthday ([bdk-sp#59](https://github.com/bitcoindevkit/bdk-sp/issues/59)) and fixed it in [#60](https://github.com/bitcoindevkit/bdk-sp/pull/60).
+- Ran the full Silent Payments loop on Signet with BDK-SP: fund, pay, scan and spend.

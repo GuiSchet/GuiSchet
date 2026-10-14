@@ -1,0 +1,15 @@
+---
+title: "February 2026: More RPCs in peer-observer"
+date: 2026-02-28
+summary: "Two more RPCs merged, a metrics PR started and the first plans for an alerts tool."
+type: update
+project: peer-observer
+---
+
+Kept growing the RPC extractor in peer-observer.
+
+- Merged [#319](https://github.com/peer-observer/peer-observer/pull/319) and [#321](https://github.com/peer-observer/peer-observer/pull/321), which add `getnetworkinfo` and `getblockchaininfo`.
+- Started [#339](https://github.com/peer-observer/peer-observer/pull/339): Prometheus metrics and integration tests for the RPC extractor.
+- Reviewed and tested [#345](https://github.com/peer-observer/peer-observer/pull/345), which adds `getrawaddrman`.
+- Started planning an alerts tool ([#185](https://github.com/peer-observer/peer-observer/issues/185)): log when something odd happens on the network.
+- On the side, worked through the Chaincode BOSS Challenge.

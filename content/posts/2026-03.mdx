@@ -1,0 +1,13 @@
+---
+title: "March 2026: Metrics, a bug and a hackathon"
+date: 2026-03-31
+summary: "The metrics PR got merged, I found a bug along the way, and I built c12d at the Bitcoin++ hackathon."
+type: update
+project: peer-observer
+---
+
+A good month for peer-observer, plus a hackathon.
+
+- Merged [#339](https://github.com/peer-observer/peer-observer/pull/339): metrics for how long RPC calls take and how often they fail, with 14 integration tests.
+- While working on it I found that the shared metrics server ignores the request path, and reported it in [#384](https://github.com/peer-observer/peer-observer/issues/384).
+- Built [c12d](https://github.com/GuiSchet/c12d) at the Bitcoin++ hackathon: real-time analysis and visualization of a Bitcoin Core node.
