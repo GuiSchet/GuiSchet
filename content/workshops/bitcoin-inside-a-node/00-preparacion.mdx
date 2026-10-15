@@ -1,0 +1,86 @@
+---
+title: "Preparación"
+summary: "Levantar tres nodos Bitcoin Core 31.1 en regtest con Docker, en cinco pasos."
+---
+
+## 0. Comprobá que tenés Docker
+
+```bash
+docker compose version
+```
+
+Tiene que imprimir una versión 2.x. Si no la tenés, instalá [Docker](https://docs.docker.com/get-started/get-docker/). En Windows, usá la terminal de WSL2. También conviene tener [`jq`](https://jqlang.org/) para filtrar JSON, aunque es opcional.
+
+## 1. Bajá el lab
+
+```bash
+git clone https://github.com/GuiSchet/bitcoin-inside-a-node-lab
+cd bitcoin-inside-a-node-lab
+```
+
+## 2. Levantá los tres nodos
+
+```bash
+docker compose up -d --wait
+```
+
+La primera vez tarda ~1 minuto. El `Dockerfile` descarga Bitcoin Core 31.1 de bitcoincore.org y verifica su SHA256 antes de instalarlo.
+
+Quedan tres nodos conectados en línea. La flecha indica quién inicia la conexión:
+
+```text
+alice ──► bob ──► carol
+```
+
+## 3. Cargá los atajos y prepará el lab
+
+```bash
+source lab.sh
+lab_setup
+```
+
+- `source lab.sh` define los comandos `alice`, `bob` y `carol`. `alice getpeerinfo` es lo mismo que `docker compose exec -T alice bitcoin-cli getpeerinfo`.
+- `lab_setup` crea una wallet en cada nodo y mina 101 bloques para alice. Las recompensas de coinbase recién se pueden gastar 100 bloques después, así que alice queda con 50 BTC gastables. Lo podés correr más de una vez sin problema.
+
+Vas a ver:
+
+```text
+Listo: alice tiene 50.00000000 BTC; los tres nodos están en el bloque 101.
+```
+
+<Callout title="Cada terminal nueva">
+Los comandos de la guía asumen que estás en la carpeta del repo y que corriste `source lab.sh` en esa terminal. Si ves `alice: command not found`, falta eso.
+</Callout>
+
+## 4. Tu primera pregunta al nodo
+
+```bash
+alice getblockchaininfo
+```
+
+Listo: seguí con el track 1.
+
+## Otros atajos
+
+| Comando | Qué hace |
+|---|---|
+| `lab_wait_tx <nodo> <txid>` | Espera hasta que una tx aparezca en el mempool de un nodo |
+| `lab_wait_sync` | Espera hasta que los tres nodos tengan el mismo tip |
+| `lab_split` / `lab_join` | Corta y reconecta la red P2P de los tres nodos |
+
+## Volver a empezar
+
+```bash
+docker compose down -v
+docker compose up -d --wait
+```
+
+Se borra toda la blockchain regtest y las wallets. Después, `source lab.sh` y `lab_setup` otra vez.
+
+<Callout title="Documentación oficial">
+- [`bitcoin.conf`](https://github.com/bitcoin/bitcoin/blob/v31.1/doc/bitcoin-conf.md): cómo se configura un nodo (el lab usa `conf/bitcoin.conf`).
+- [Archivos y directorios](https://github.com/bitcoin/bitcoin/blob/v31.1/doc/files.md): dónde guarda todo el nodo; regtest usa su propia subcarpeta.
+- [Interfaz JSON-RPC](https://github.com/bitcoin/bitcoin/blob/v31.1/doc/JSON-RPC-interface.md): lo que hace `bitcoin-cli` por debajo.
+- RPC: [`createwallet`](https://bitcoincore.org/en/doc/31.0.0/rpc/wallet/createwallet/) y [`getblockchaininfo`](https://bitcoincore.org/en/doc/31.0.0/rpc/blockchain/getblockchaininfo/).
+- `generatetoaddress` (minar en regtest) no aparece en la referencia web: su ayuda sale con `alice help generatetoaddress`.
+</Callout>

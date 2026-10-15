@@ -1,0 +1,51 @@
+---
+title: "Más allá: tracepoints y peer-observer"
+summary: "Cómo se observa todo esto en tiempo real y a escala: tracepoints USDT, eBPF, peer-observer y el ecosistema de monitoreo."
+---
+
+Todo lo que hicimos se puede llevar más lejos. Este track no tiene ejercicios: son las herramientas que vimos en la charla.
+
+## Tracepoints
+
+Los binarios oficiales de Bitcoin Core para Linux traen **tracepoints USDT**: puntos del código donde un programa externo se puede enganchar con eBPF para ver cada evento en el momento, sin modificar Core. En 31.1 hay tracepoints para:
+
+- `net`: cada mensaje P2P que entra o sale, conexiones que se abren, se cierran o se desalojan.
+- `mempool`: txs agregadas, removidas, reemplazadas o rechazadas.
+- `validation`: bloques conectados.
+- `utxocache` y `coin_selection`.
+
+La lista completa está en [`doc/tracing.md`](https://github.com/bitcoin/bitcoin/blob/v31.1/doc/tracing.md). Hay ejemplos en [`contrib/tracing`](https://github.com/bitcoin/bitcoin/tree/v31.1/contrib/tracing), como `p2p_monitor.py`, que muestra el tráfico por peer.
+
+<Callout title="Requiere root">
+Cargar programas eBPF requiere Linux y privilegios de root ([`contrib/tracing/README.md`](https://github.com/bitcoin/bitcoin/blob/v31.1/contrib/tracing/README.md)). Revisá cualquier script antes de correrlo como root.
+</Callout>
+
+## peer-observer
+
+[peer-observer](https://github.com/peer-observer/peer-observer) es "tooling to monitor for P2P anomalies and attacks using Bitcoin Core honey pot nodes". Lo que hicimos a mano, pero escalado:
+
+```text
+Bitcoin Core ─┬─ tracepoints ─► ebpf-extractor ─┐
+              ├─ RPC ─────────► rpc-extractor ──┤
+              ├─ P2P ─────────► p2p-extractor ──┼─► NATS ─► metrics · websocket · logger · archive · alerts
+              ├─ debug.log ───► log-extractor ──┤
+              └─ IPC ─────────► ipc-extractor ──┘  (experimental)
+```
+
+Los extractores publican eventos en NATS y cada herramienta se suscribe a los que necesita. El tool `alerts` detecta comportamientos anómalos por peer:
+
+- `PingSpammer`: más pings de los esperables en una ventana de tiempo.
+- `AddrSpammer`: demasiados mensajes `addr`/`addrv2`.
+
+## c12d
+
+[c12d](https://github.com/GuiSchet/c12d) es un dashboard en tiempo real que consume el WebSocket de peer-observer: tipos de mensajes, tasa de mensajes, conexiones por tipo y mempool.
+
+## El mapa
+
+El [Map of Bitcoin Monitoring](https://github.com/bitcoin-noc/map-of-bitcoin-monitoring) reúne los proyectos de monitoreo del ecosistema. Por ejemplo:
+
+- [fork-observer](https://github.com/0xB10C/fork-observer): compara las puntas que ven varios nodos para detectar forks.
+- [mainnet-observer](https://github.com/0xB10C/mainnet-observer): estadísticas de la blockchain.
+
+Ningún nodo ve "todo Bitcoin". Comparar observadores revela lo que uno solo no ve.

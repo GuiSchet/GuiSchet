@@ -3,15 +3,9 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
 import { ArrowLeftIcon, ArrowUpRightIcon } from "lucide-react"
-import { compileMDX } from "next-mdx-remote/rsc"
-import rehypeAutolinkHeadings from "rehype-autolink-headings"
-import rehypePrettyCode from "rehype-pretty-code"
-import rehypeSlug from "rehype-slug"
-import remarkGfm from "remark-gfm"
-
-import { mdxComponents } from "@/components/mdx-components"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { proseClassName, renderMDX } from "@/lib/mdx"
 import { formatDate, getAllPosts, getPost, typeLabel } from "@/lib/posts"
 
 export function generateStaticParams() {
@@ -71,20 +65,7 @@ async function PostContent({ params }: Pick<PageProps<"/posts/[slug]">, "params"
   const post = getPost(slug)
   if (!post) notFound()
 
-  const { content } = await compileMDX({
-    source: post.body,
-    components: mdxComponents,
-    options: {
-      mdxOptions: {
-        remarkPlugins: [remarkGfm],
-        rehypePlugins: [
-          rehypeSlug,
-          [rehypeAutolinkHeadings, { behavior: "wrap" }],
-          [rehypePrettyCode, { theme: { light: "github-light", dark: "github-dark" } }],
-        ],
-      },
-    },
-  })
+  const content = await renderMDX(post.body)
 
   return (
     <>
@@ -116,9 +97,7 @@ async function PostContent({ params }: Pick<PageProps<"/posts/[slug]">, "params"
 
       <Separator className="my-8" />
 
-      <div className="prose prose-neutral max-w-none dark:prose-invert prose-headings:scroll-mt-8 prose-headings:font-semibold prose-headings:tracking-tight prose-a:underline-offset-4 prose-code:before:content-none prose-code:after:content-none prose-code:font-normal prose-h2:[&_a]:no-underline prose-h3:[&_a]:no-underline">
-        {content}
-      </div>
+      <div className={proseClassName}>{content}</div>
     </>
   )
 }

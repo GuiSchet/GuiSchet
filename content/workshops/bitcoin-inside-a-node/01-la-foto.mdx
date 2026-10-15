@@ -1,0 +1,111 @@
+---
+title: "La foto: preguntarle al nodo"
+summary: "RPC y -netinfo: dónde cree el nodo que está Bitcoin, con quién habla, qué hay en su mempool y si ve una sola cadena."
+---
+
+Un RPC es una **foto**: le preguntamos al nodo cómo está en este momento.
+
+<Callout title="Requisito">
+Haber hecho el track 0, incluido `lab_setup`.
+</Callout>
+
+## ¿Dónde cree mi nodo que está Bitcoin?
+
+<Step label="Probá">
+```bash
+alice getblockchaininfo | jq '{chain, blocks, headers, initialblockdownload}'
+```
+</Step>
+
+<Step label="Mirá">
+- `chain: "regtest"`: la red de prueba local.
+- `blocks: 101`: la altura de la cadena que el nodo ya validó.
+- `headers`: cuántos encabezados de bloque conoce. Si es mayor que `blocks`, sabe de bloques que todavía no validó.
+- `initialblockdownload: false`: el nodo cree que está al día. Antes de `lab_setup`, con solo el bloque génesis (de 2011), daba `true`: el nodo creía que le faltaba sincronizar.
+</Step>
+
+<Step label="Por qué">
+Es lo que el nodo **cree**, no una verdad universal. Cada nodo tiene su propia opinión sobre cuál es la cadena actual.
+</Step>
+
+<Callout title="Documentación oficial">
+RPC [`getblockchaininfo`](https://bitcoincore.org/en/doc/31.0.0/rpc/blockchain/getblockchaininfo/).
+</Callout>
+
+## ¿Con quién habla?
+
+<Step label="Probá">
+```bash
+alice -netinfo 4
+bob getpeerinfo | jq '.[] | {addr, connection_type, network, transport_protocol_type}'
+```
+</Step>
+
+<Step label="Mirá">
+- `-netinfo` es una tabla para humanos: por dentro usa `getpeerinfo` y `getnetworkinfo`.
+- `connection_type`: bob ve a carol como `manual` (la agregamos con `-addnode`) y a alice como `inbound`, porque fue alice la que se conectó.
+- `network`: `not_publicly_routable` (`npr` en `-netinfo`), porque las IPs de Docker son privadas.
+- `transport_protocol_type`: `v2`, el transporte cifrado de BIP324, activado por defecto desde Bitcoin Core 27.
+</Step>
+
+<Step label="Por qué">
+En mainnet verías otra variedad: 8 conexiones salientes `outbound-full-relay`, 2 `block-relay-only`, peers en `ipv4`, `ipv6`, `onion` o `i2p`, y hasta 125 conexiones en total. Tu nodo no está "conectado a Bitcoin": está conectado a un puñado de nodos que forman su vista local de la red.
+
+BIP324 es cifrado **oportunista y no autenticado**. Un observador pasivo no puede leer los mensajes, pero no protege contra un man-in-the-middle activo.
+</Step>
+
+<Callout title="Documentación oficial">
+- RPC [`getpeerinfo`](https://bitcoincore.org/en/doc/31.0.0/rpc/network/getpeerinfo/) y [`getnetworkinfo`](https://bitcoincore.org/en/doc/31.0.0/rpc/network/getnetworkinfo/).
+- `-netinfo`: la ayuda completa sale con `alice -netinfo help`.
+- [BIP324](https://github.com/bitcoin/bips/blob/master/bip-0324.mediawiki) (transporte v2) y en qué versión se activó, en [`doc/bips.md`](https://github.com/bitcoin/bitcoin/blob/v31.1/doc/bips.md).
+- Tipos de conexión: [`src/node/connection_types.h`](https://github.com/bitcoin/bitcoin/blob/v31.1/src/node/connection_types.h).
+</Callout>
+
+## ¿Qué espera para entrar a un bloque?
+
+<Step label="Probá">
+```bash
+TX=$(alice sendtoaddress "$(carol getnewaddress)" 1)
+lab_wait_tx carol "$TX"
+carol getmempoolinfo | jq '{size, bytes, mempoolminfee}'
+```
+</Step>
+
+<Step label="Mirá">
+- La tx llega a carol **pasando por bob**: alice y carol no están conectadas.
+- Tarda unos segundos. Es a propósito, lo vemos en el track 4.
+- `size: 1`: la tx espera en el mempool de carol.
+</Step>
+
+<Step label="Probá">
+```bash
+alice -generate 1
+lab_wait_sync
+carol getmempoolinfo | jq .size
+```
+</Step>
+
+<Step label="Por qué">
+Al minar el bloque, la tx sale del mempool (`size: 0`). En mainnet cada nodo tiene **su** mempool: no existe "el" mempool.
+</Step>
+
+<Callout title="Documentación oficial">
+- RPC [`getmempoolinfo`](https://bitcoincore.org/en/doc/31.0.0/rpc/blockchain/getmempoolinfo/), [`sendtoaddress`](https://bitcoincore.org/en/doc/31.0.0/rpc/wallet/sendtoaddress/) y [`getrawmempool`](https://bitcoincore.org/en/doc/31.0.0/rpc/blockchain/getrawmempool/).
+- Novedad de la versión 31: el *cluster mempool* ([notas de la versión 31.0](https://bitcoincore.org/en/releases/31.0/), RPC [`getmempoolcluster`](https://bitcoincore.org/en/doc/31.0.0/rpc/blockchain/getmempoolcluster/)).
+</Callout>
+
+## ¿Ve una sola cadena?
+
+<Step label="Probá">
+```bash
+alice getchaintips
+```
+</Step>
+
+<Step label="Mirá">
+Una sola punta con `status: "active"`. Los otros estados posibles son `valid-fork`, `valid-headers`, `headers-only` e `invalid`. En el track 4 vamos a fabricar un `valid-fork`.
+</Step>
+
+<Callout title="Documentación oficial">
+RPC [`getchaintips`](https://bitcoincore.org/en/doc/31.0.0/rpc/blockchain/getchaintips/).
+</Callout>

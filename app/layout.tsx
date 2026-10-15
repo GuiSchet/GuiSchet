@@ -41,7 +41,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <div className="mx-auto flex min-h-svh w-full max-w-2xl flex-col px-4 sm:px-6">
+          <div className="mx-auto flex min-h-svh w-full max-w-3xl flex-col px-4 sm:px-6">
             <SiteHeader />
             <main className="flex-1 pb-16">{children}</main>
             <SiteFooter />

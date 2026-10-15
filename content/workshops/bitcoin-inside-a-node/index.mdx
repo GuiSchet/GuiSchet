@@ -1,0 +1,57 @@
+---
+title: "Vamos a mirar Bitcoin desde dentro de un nodo"
+summary: "Guía práctica del workshop de LABITCONF 2026: qué podemos aprender de Bitcoin observando nuestro propio nodo, desde un RPC hasta la conversación P2P."
+event: LABITCONF 2026
+lang: es
+links:
+  - label: Lab (GitHub)
+    href: https://github.com/GuiSchet/bitcoin-inside-a-node-lab
+---
+
+En el workshop miramos un nodo Bitcoin Core de mainnet. Acá podés hacer lo mismo en tu máquina con un **lab de tres nodos en regtest**: una blockchain de juguete donde vos minás los bloques con un comando. No hace falta bajar la blockchain real ni tener bitcoin.
+
+## ¿Por dónde empiezo?
+
+| Track | Qué vas a hacer | Nivel |
+|---|---|---|
+| 0 · Preparación | Levantar el lab con tres comandos | Primera vez |
+| 1 · La foto | Preguntarle al nodo dónde está, con quién habla y qué hay en su mempool | Primera vez |
+| 2 · Los logs | Encender el log y ver a dos nodos pasarse una transacción | Primera vez |
+| 3 · La película | Escuchar los eventos del nodo con ZMQ y ver una tx reemplazada | Intermedio |
+| 4 · La conversación | Ver los mensajes P2P y fabricar tu propio fork | Intermedio |
+| 5 · Más allá | Tracepoints, peer-observer y c12d | Lectura |
+
+Si es tu primera vez, hacé los tracks 0 a 2. Cada paso tiene la misma estructura: **Probá** (el comando), **Mirá** (en qué fijarte) y **Por qué** (qué nos dice sobre Bitcoin). Al final de cada tema hay links a la **documentación oficial** de Bitcoin Core.
+
+<Callout title="Cinco palabras">
+- **Nodo**: un programa (acá, Bitcoin Core) que guarda la blockchain, valida todo y habla con otros nodos.
+- **Regtest**: una red de prueba local. Los bloques se minan con un comando y las monedas no valen nada.
+- **RPC**: la forma de hacerle preguntas al nodo. `bitcoin-cli` es el cliente.
+- **Mempool**: la sala de espera de las transacciones que todavía no entraron en un bloque.
+- **Peer**: otro nodo con el que el tuyo está conectado.
+</Callout>
+
+## Tres formas de mirar un nodo
+
+| | Qué es | Herramienta | Track |
+|---|---|---|---|
+| **La foto** | Cómo está el nodo ahora | RPC y `bitcoin-cli -netinfo` | 1 |
+| **La película** | Qué le va pasando, evento por evento | `debug.log` (RPC `logging`) y ZMQ | 2 y 3 |
+| **La conversación** | Qué mensajes se manda con otros nodos | P2P: `getpeerinfo`, logs, tracepoints | 4 y 5 |
+
+Las mismas preguntas, según la fuente:
+
+| Pregunta | RPC | Logs | ZMQ `sequence` | Tracepoints |
+|---|---|---|---|---|
+| ¿Dónde cree mi nodo que está Bitcoin? | `getblockchaininfo` | `UpdateTip` | `C` / `D` | `validation:block_connected` |
+| ¿Con quién habla? | `-netinfo`, `getpeerinfo` | `net` | — | `net:*_connection` |
+| ¿Qué se dicen? | `bytes*_per_msg` en `getpeerinfo` | `net` | — | `net:inbound_message`, `net:outbound_message` |
+| ¿Qué espera para entrar a un bloque? | `getmempoolinfo` | `mempool` | `A` / `R` | `mempool:*` |
+| ¿Ve una sola cadena? | `getchaintips` | `UpdateTip` | `D` | — |
+
+## Documentación oficial
+
+- [Referencia RPC de Bitcoin Core 31](https://bitcoincore.org/en/doc/31.0.0/): cada comando, con sus argumentos y campos.
+- [Documentación del código, `doc/` @ v31.1](https://github.com/bitcoin/bitcoin/tree/v31.1/doc): ZMQ, tracing, archivos, configuración.
+- [Notas de la versión 31.0](https://bitcoincore.org/en/releases/31.0/): qué cambió (por ejemplo, el *cluster mempool*).
+- [BIPs implementados por Bitcoin Core](https://github.com/bitcoin/bitcoin/blob/v31.1/doc/bips.md) y el [repositorio de BIPs](https://github.com/bitcoin/bips).

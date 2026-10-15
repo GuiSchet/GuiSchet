@@ -1,0 +1,143 @@
+---
+title: "La conversación P2P y tu propio fork"
+summary: "Qué mensajes se mandan los nodos, por qué un peer block-relay-only nunca recibe transacciones, y cómo una tx confirmada vuelve al mempool tras un reorg."
+---
+
+<Callout title="Requisito">
+Haber hecho el track 0, incluido `lab_setup`. Para la última parte, tener el listener ZMQ del track 3 corriendo en otra terminal.
+</Callout>
+
+## ¿Qué se dicen dos nodos?
+
+<Step label="Probá">
+```bash
+bob getpeerinfo | jq '.[] | {addr, bytessent_per_msg}'
+```
+</Step>
+
+<Step label="Mirá">
+Cada nodo cuenta cuántos bytes mandó y recibió por **tipo de mensaje** y por peer. Aparecen los del handshake y los de uso diario:
+
+- `version` y `verack`: el saludo.
+- `sendaddrv2` (BIP155), `wtxidrelay` (BIP339), `sendcmpct` (BIP152) y `feefilter` (BIP133): lo que cada uno soporta y quiere recibir.
+- `getheaders` / `headers`: sincronizar la cadena.
+- `ping` / `pong`: seguir vivos. Core manda un ping cada 2 minutos.
+- `inv`, `getdata`, `tx`: las transacciones que vimos en el track 2.
+</Step>
+
+<Callout title="Documentación oficial">
+- RPC [`getpeerinfo`](https://bitcoincore.org/en/doc/31.0.0/rpc/network/getpeerinfo/): campos `bytessent_per_msg` y `bytesrecv_per_msg`.
+- BIPs: [BIP155](https://github.com/bitcoin/bips/blob/master/bip-0155.mediawiki) (`addrv2`), [BIP339](https://github.com/bitcoin/bips/blob/master/bip-0339.mediawiki) (`wtxidrelay`), [BIP152](https://github.com/bitcoin/bips/blob/master/bip-0152.mediawiki) (compact blocks), [BIP133](https://github.com/bitcoin/bips/blob/master/bip-0133.mediawiki) (`feefilter`) y [BIP130](https://github.com/bitcoin/bips/blob/master/bip-0130.mediawiki) (`sendheaders`). Desde qué versión los soporta Core: [`doc/bips.md`](https://github.com/bitcoin/bitcoin/blob/v31.1/doc/bips.md).
+</Callout>
+
+## ¿Por qué tarda una transacción?
+
+<Step label="Por qué">
+Los anuncios de transacciones no salen al instante. Core los agrupa y los manda cada 2 s en promedio a peers salientes y cada 5 s a peers entrantes, con tiempos aleatorios. Así es más difícil deducir qué nodo originó una tx. Por eso usamos `lab_wait_tx` en vez de mirar el mempool enseguida.
+</Step>
+
+<Callout title="Documentación oficial">
+Las constantes `INBOUND_INVENTORY_BROADCAST_INTERVAL` y `OUTBOUND_INVENTORY_BROADCAST_INTERVAL` en [`src/net_processing.cpp`](https://github.com/bitcoin/bitcoin/blob/v31.1/src/net_processing.cpp).
+</Callout>
+
+## Un peer que solo quiere bloques
+
+<Step label="Probá">
+Abrimos una conexión `block-relay-only` de alice a carol. `addconnection` es un RPC oculto que solo existe para pruebas en regtest:
+
+```bash
+alice addconnection carol:18444 block-relay-only false
+alice getpeerinfo | jq '.[] | {id, addr, connection_type}'
+```
+
+Anotá el `id` del peer `block-relay-only` y mandá una tx a carol:
+
+```bash
+TX=$(alice sendtoaddress "$(carol getnewaddress)" 1)
+lab_wait_tx carol "$TX"
+docker compose logs alice | grep -E "sending (inv|tx) .* peer=<id>$"
+```
+</Step>
+
+<Step label="Mirá">
+- El `grep` no devuelve nada: alice nunca le ofrece la tx a ese peer.
+- La tx igual llega a carol, por el camino alice → bob → carol.
+- Para ver los mensajes de la red en el log, la categoría `net` de alice tiene que estar encendida (track 2).
+</Step>
+
+<Step label="Por qué">
+En mainnet cada nodo abre 2 conexiones `block-relay-only` además de las 8 `full-relay`. Sirven contra ataques de partición: como no intercambian transacciones ni direcciones, a un tercero le cuesta más detectarlas, y la topología de la red queda más oculta.
+</Step>
+
+<Callout title="Documentación oficial">
+- Tipos de conexión: [`src/node/connection_types.h`](https://github.com/bitcoin/bitcoin/blob/v31.1/src/node/connection_types.h).
+- Límites por defecto (8, 2 y 125): [`src/net.h`](https://github.com/bitcoin/bitcoin/blob/v31.1/src/net.h).
+- `addconnection` es un RPC oculto de pruebas: su ayuda sale con `alice help addconnection`.
+</Callout>
+
+Minamos un bloque para dejar el mempool vacío:
+
+```bash
+alice -generate 1
+lab_wait_sync
+```
+
+## Fabricá tu propio fork
+
+<Step label="Pregunta">
+¿Qué pasa si dos partes de la red minan al mismo tiempo sin verse?
+</Step>
+
+<Step label="Probá">
+Cortamos la red. alice incluye una tx en un bloque mientras carol mina dos:
+
+```bash
+lab_split
+TX=$(alice sendtoaddress "$(alice getnewaddress)" 1)
+FORK=$(alice -generate 1 | jq -r '.blocks[0]')
+carol -generate 2
+alice getbestblockhash; carol getbestblockhash
+```
+
+Las dos puntas son distintas. Reconectamos:
+
+```bash
+lab_join
+lab_wait_sync
+alice getchaintips
+alice getblock "$FORK" | jq .confirmations
+alice getrawmempool
+```
+</Step>
+
+<Step label="Mirá">
+- `getchaintips` muestra dos puntas: la `active` y el bloque de alice como `valid-fork` con `branchlen: 1`.
+- `confirmations: -1`: el bloque de alice ya no está en la cadena activa.
+- La tx de alice **volvió a su mempool**.
+- El listener ZMQ de alice lo cuenta paso a paso:
+
+```text
+A  <tx>     la tx entra al mempool
+C  <FORK>   alice mina su bloque
+D  <FORK>   el bloque se desconecta: la cadena de carol tiene más trabajo
+A  <tx>     la tx vuelve al mempool
+C  <…>      primer bloque de carol
+C  <…>      segundo bloque de carol
+```
+</Step>
+
+<Step label="Por qué">
+Una confirmación no es una garantía absoluta: si aparece una cadena con más trabajo, el nodo se reorganiza. Por eso se esperan varias confirmaciones. En el log de alice (`docker compose logs alice | grep UpdateTip`) se ve la altura bajar y volver a subir.
+</Step>
+
+<Callout title="Documentación oficial">
+- RPC [`getchaintips`](https://bitcoincore.org/en/doc/31.0.0/rpc/blockchain/getchaintips/), [`getblock`](https://bitcoincore.org/en/doc/31.0.0/rpc/blockchain/getblock/) (`confirmations: -1` si el bloque no está en la cadena principal) y [`getrawmempool`](https://bitcoincore.org/en/doc/31.0.0/rpc/blockchain/getrawmempool/).
+- RPC [`setnetworkactive`](https://bitcoincore.org/en/doc/31.0.0/rpc/network/setnetworkactive/) y [`addnode`](https://bitcoincore.org/en/doc/31.0.0/rpc/network/addnode/), que usan `lab_split` y `lab_join`.
+- [`doc/zmq.md`](https://github.com/bitcoin/bitcoin/blob/v31.1/doc/zmq.md): por qué el bloque desconectado aparece como `D`.
+</Callout>
+
+<Callout title="Detalles del lab">
+- `lab_join` fuerza la reconexión con `addnode … onetry`. Si no, Bitcoin Core reintenta las conexiones de `-addnode` cada 60 s.
+- La conexión `block-relay-only` de `addconnection` no se restablece después de `lab_split`.
+- La tx que volvió al mempool de alice no se re-anuncia a los peers que se reconectan; en el lab queda en el mempool de alice.
+</Callout>

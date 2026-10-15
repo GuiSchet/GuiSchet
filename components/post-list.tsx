@@ -3,11 +3,34 @@ import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { formatDate, typeLabel, type Post } from "@/lib/posts"
 
-export function PostList({ posts }: { posts: Post[] }) {
+// With `initial`, only the first N posts are shown and the rest sit behind a native
+// <details> toggle, so the page stays static with no client JavaScript.
+export function PostList({ posts, initial }: { posts: Post[]; initial?: number }) {
   if (posts.length === 0) {
     return <p className="text-sm text-muted-foreground">Nothing here yet.</p>
   }
 
+  const visible = initial ? posts.slice(0, initial) : posts
+  const hidden = initial ? posts.slice(initial) : []
+
+  return (
+    <>
+      <PostItems posts={visible} />
+      {hidden.length > 0 && (
+        <details className="group/more">
+          <summary className="cursor-pointer list-none border-t py-4 text-sm text-muted-foreground hover:text-foreground group-open/more:hidden [&::-webkit-details-marker]:hidden">
+            Show {hidden.length} more {hidden.length === 1 ? "post" : "posts"}
+          </summary>
+          <div className="border-t">
+            <PostItems posts={hidden} />
+          </div>
+        </details>
+      )}
+    </>
+  )
+}
+
+function PostItems({ posts }: { posts: Post[] }) {
   return (
     <ul className="divide-y">
       {posts.map((post) => (

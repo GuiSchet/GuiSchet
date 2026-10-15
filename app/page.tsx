@@ -45,7 +45,7 @@ export default function HomePage() {
       </section>
       <section className="pt-8">
         <h2 className="text-sm font-medium text-muted-foreground">Posts</h2>
-        <PostList posts={posts} />
+        <PostList posts={posts} initial={7} />
       </section>
     </>
   )

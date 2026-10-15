@@ -6,7 +6,9 @@ function Callout({ title, children }: { title?: string; children: React.ReactNod
   return (
     <aside className="not-prose my-6 rounded-lg border bg-muted/40 px-4 py-3 text-sm">
       {title && <p className="mb-1 font-medium">{title}</p>}
-      <div className="text-muted-foreground [&_a]:underline [&_p]:my-1">{children}</div>
+      <div className="text-muted-foreground [&_a]:underline [&_li]:my-0.5 [&_p]:my-1 [&_ul]:list-disc [&_ul]:pl-5">
+        {children}
+      </div>
     </aside>
   )
 }
@@ -21,6 +23,19 @@ function Stat({ value, label }: { value: string; label: string }) {
       <div className="text-lg font-semibold tabular-nums">{value}</div>
       <div className="text-xs text-muted-foreground">{label}</div>
     </div>
+  )
+}
+
+// A labelled step in a workshop track (e.g. "Pregunta", "Probá", "Mirá", "Por qué").
+// Stays inside the prose styles so code blocks and lists render as usual.
+function Step({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <section className="my-6 border-l-2 pl-4 [&>:nth-child(2)]:mt-0 [&>:last-child]:mb-0">
+      <p className="not-prose mb-2 font-mono text-xs uppercase tracking-wider text-muted-foreground">
+        {label}
+      </p>
+      {children}
+    </section>
   )
 }
 
@@ -43,4 +58,5 @@ export const mdxComponents: MDXComponents = {
   Callout,
   Stats,
   Stat,
+  Step,
 }

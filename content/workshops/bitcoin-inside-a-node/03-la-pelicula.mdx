@@ -1,0 +1,112 @@
+---
+title: "La película: eventos con ZMQ"
+summary: "Suscribirse a los eventos del nodo y ver una transacción entrar, ser reemplazada y minarse."
+---
+
+Los logs son para humanos. **ZMQ** es la misma película, pero para programas: el nodo publica cada evento y cualquier proceso se puede suscribir.
+
+<Callout title="Requisito">
+Haber hecho el track 0, incluido `lab_setup`.
+</Callout>
+
+## ¿Qué publica el nodo?
+
+<Step label="Probá">
+```bash
+alice getzmqnotifications
+```
+</Step>
+
+<Step label="Mirá">
+`pubsequence`, `pubrawtx` y `pubhashblock`. Están configurados en `conf/bitcoin.conf`:
+
+```ini
+zmqpubsequence=tcp://0.0.0.0:28332
+zmqpubrawtx=tcp://0.0.0.0:28333
+zmqpubhashblock=tcp://0.0.0.0:28334
+```
+</Step>
+
+El topic `sequence` cuenta todo lo que le pasa al mempool y a la cadena:
+
+| Etiqueta | Significado |
+|---|---|
+| `A` | tx agregada al mempool |
+| `R` | tx removida del mempool **por un motivo distinto de entrar en un bloque** |
+| `C` | bloque conectado |
+| `D` | bloque desconectado |
+
+<Callout title="Documentación oficial">
+- [`doc/zmq.md`](https://github.com/bitcoin/bitcoin/blob/v31.1/doc/zmq.md): todos los topics y el formato exacto de cada mensaje.
+- RPC [`getzmqnotifications`](https://bitcoincore.org/en/doc/31.0.0/rpc/zmq/getzmqnotifications/).
+</Callout>
+
+## Escuchar
+
+<Step label="Probá">
+En **otra terminal**, desde la carpeta del repo:
+
+```bash
+docker compose exec alice python3 /lab/scripts/zmq_listen.py
+```
+</Step>
+
+## Una tx que se reemplaza y se mina
+
+<Step label="Probá">
+En la primera terminal:
+
+```bash
+T1=$(alice -named sendtoaddress address="$(carol getnewaddress)" amount=1 replaceable=true)
+T2=$(alice bumpfee "$T1" | jq -r .txid)
+alice -generate 1
+```
+</Step>
+
+<Step label="Mirá">
+```text
+A  <T1>  tx agregada al mempool
+R  <T1>  tx removida del mempool (no por entrar en un bloque)
+A  <T2>  tx agregada al mempool
+C  <bloque>  bloque conectado
+```
+
+`bumpfee` crea `T2`, que incluye todos los inputs de `T1` y paga más fee: reemplaza a `T1` (RBF). `T2` entra en el bloque, pero **no** aparece un `R` para ella: que salió del mempool se deduce del `C`.
+</Step>
+
+<Step label="Por qué">
+Con un RPC tendrías que preguntar cada tanto y comparar fotos. Con ZMQ el nodo te avisa en el momento.
+</Step>
+
+<Callout title="Documentación oficial">
+- RPC [`bumpfee`](https://bitcoincore.org/en/doc/31.0.0/rpc/wallet/bumpfee/) y [`sendtoaddress`](https://bitcoincore.org/en/doc/31.0.0/rpc/wallet/sendtoaddress/).
+- [Reglas de reemplazo (RBF)](https://github.com/bitcoin/bitcoin/blob/v31.1/doc/policy/mempool-replacements.md): cuándo una tx puede reemplazar a otra.
+</Callout>
+
+## Escribí tu propio suscriptor
+
+`zmq_listen.py` es apenas más largo que esto. Guardalo como `scripts/mi_listener.py` dentro del repo:
+
+```python
+import zmq
+s = zmq.Context().socket(zmq.SUB)
+s.connect("tcp://127.0.0.1:28332")
+s.setsockopt_string(zmq.SUBSCRIBE, "sequence")
+while True:
+    topic, body, seq = s.recv_multipart()
+    print(chr(body[32]), body[:32].hex(), flush=True)
+```
+
+Y corrélo **dentro del contenedor de alice**, donde la carpeta `scripts/` aparece como `/lab/scripts`:
+
+```bash
+docker compose exec alice python3 /lab/scripts/mi_listener.py
+```
+
+El puerto ZMQ (`28332`) no está publicado fuera de Docker, así que `127.0.0.1` solo funciona desde adentro del contenedor.
+
+<Callout title="Ojo con el orden de bytes">
+El hash ya viaja en el orden en que se muestra, igual que en `getrawmempool` o en un explorador. No hay que invertirlo. La documentación de Core (`doc/zmq.md`) lo describe como "reversed" respecto del orden interno.
+</Callout>
+
+Dejá el listener corriendo para el track 4.

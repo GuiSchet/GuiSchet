@@ -1,0 +1,98 @@
+---
+title: "Los logs: el nodo cuenta lo que pasa"
+summary: "Encender categorías de log en caliente y seguir una transacción en debug.log."
+---
+
+Con fotos nos perdemos lo que pasa entre una y otra. El `debug.log` es una **película**: cada evento, contado por el nodo.
+
+<Callout title="Requisito">
+Haber hecho el track 0, incluido `lab_setup`.
+</Callout>
+
+## ¿Qué dice el nodo mientras trabaja?
+
+<Step label="Probá">
+Encendé las categorías `net` y `mempool` sin reiniciar:
+
+```bash
+alice logging '["net","mempool"]'
+bob logging '["net","mempool"]'
+```
+
+En **otra terminal**, desde la carpeta del repo, seguí el log de alice:
+
+```bash
+docker compose logs -f alice
+```
+
+En el lab los nodos escriben el log en la salida estándar. En un nodo normal el equivalente es `tail -f ~/.bitcoin/debug.log`.
+</Step>
+
+<Step label="Probá">
+En la primera terminal:
+
+```bash
+TX=$(alice sendtoaddress "$(bob getnewaddress)" 1)
+lab_wait_tx bob "$TX"
+```
+</Step>
+
+<Step label="Mirá">
+En el log de alice, la conversación con bob:
+
+```text
+[net] sending inv (37 bytes) peer=0
+[net] received: getdata (37 bytes) peer=0
+[net] sending tx (222 bytes) peer=0
+```
+
+En el de bob (`docker compose logs bob | grep AcceptToMemoryPool`):
+
+```text
+[mempool] AcceptToMemoryPool: peer=0: accepted <txid> (wtxid=…) (poolsz 1 txn, 1 kB)
+```
+
+Los IDs de peer y los tamaños pueden ser distintos en tu máquina.
+</Step>
+
+<Step label="Por qué">
+Recibir una transacción no es un evento único: es una conversación. Alice **anuncia** (`inv`), bob **pide** (`getdata`) y alice **envía** (`tx`).
+</Step>
+
+<Callout title="Documentación oficial">
+- RPC [`logging`](https://bitcoincore.org/en/doc/31.0.0/rpc/control/logging/): cómo encender y apagar categorías.
+- [Archivos y directorios](https://github.com/bitcoin/bitcoin/blob/v31.1/doc/files.md): dónde está `debug.log` en un nodo normal.
+</Callout>
+
+## ¿Cómo se ve un bloque nuevo?
+
+<Step label="Probá">
+```bash
+alice -generate 1
+```
+</Step>
+
+<Step label="Mirá">
+```text
+UpdateTip: new best=<hash> height=… version=… log2_work=… tx=… date='…' progress=1.000000 …
+```
+
+`UpdateTip` se loguea siempre, sin necesidad de activar ninguna categoría.
+</Step>
+
+<Callout title="Documentación oficial">
+RPC [`getbestblockhash`](https://bitcoincore.org/en/doc/31.0.0/rpc/blockchain/getbestblockhash/). `-generate` equivale a `getnewaddress` + `generatetoaddress`; este último no aparece en la referencia web: su ayuda sale con `alice help generatetoaddress`.
+</Callout>
+
+## Apagar las categorías
+
+```bash
+alice logging '[]' '["net","mempool"]'
+bob logging '[]' '["net","mempool"]'
+```
+
+El primer argumento es la lista a encender y el segundo, la lista a apagar. Hay muchas más categorías, como `cmpctblock`, `validation`, `mempoolrej` o `zmq`; las lista `alice logging`.
+
+<Callout title="En mainnet">
+La categoría `net` en un nodo de mainnet es una cascada de líneas por segundo. Encendela unos segundos y apagala.
+</Callout>
