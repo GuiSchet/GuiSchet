@@ -1,5 +1,4 @@
-import { MailIcon } from "lucide-react"
-
+import { EmailButton } from "@/components/email-reveal"
 import { Button } from "@/components/ui/button"
 import { site } from "@/lib/site"
 
@@ -24,10 +23,7 @@ const external = { target: "_blank", rel: "noopener noreferrer" }
 export function Contact() {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Button variant="outline" size="sm" nativeButton={false} render={<a href={`mailto:${site.email}`} />}>
-        <MailIcon />
-        {site.email}
-      </Button>
+      <EmailButton />
       <Button variant="outline" size="sm" nativeButton={false} render={<a href={site.discordUrl} {...external} />}>
         <DiscordIcon className="size-3.5" />
         {site.discord}

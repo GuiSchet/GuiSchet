@@ -10,6 +10,6 @@ I post monthly progress notes, talks and workshops at **[guischet.xyz](https://g
 - [bip300-monitor](https://github.com/GuiSchet/bip300-monitor): records what a drivechain node and its enforcer see
 - [peer-observer](https://github.com/peer-observer/peer-observer): contributor (RPC extractor, alerts tool)
 
-**Reach out:** [gui.schet@gmail.com](mailto:gui.schet@gmail.com) · Discord [@guischet](https://discord.com/users/252931888921051136)
+**Reach out:** `gui.schet [at] gmail [dot] com` · Discord [@guischet](https://discord.com/users/252931888921051136)
 
 <sub>This repo also hosts the source of guischet.xyz. See [DEVELOPMENT.md](DEVELOPMENT.md).</sub>
