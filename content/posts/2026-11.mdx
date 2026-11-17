@@ -1,0 +1,20 @@
+---
+title: "November 2026: drivechains on eCash mainnet"
+date: 2026-11-17
+summary: "The BIP 300/301 fork activated on eCash mainnet. bip300-monitor now watches it, and drivechain-observatory.xyz shows mainnet by default."
+type: update
+project: drivechain-observatory
+---
+
+The drivechain fork activated on eCash mainnet at block 973,728 on October 29.
+
+- [bip300-monitor](https://github.com/GuiSchet/bip300-monitor) now runs on mainnet on its own VM, next to Betanet. It uses the official enforcer v1.0.0, pinned by digest, and it refuses to start if the enforcer reports unexpected withdrawal thresholds.
+- The enforcer bug I reported in October ([#643](https://github.com/LayerTwo-Labs/bip300301_enforcer/issues/643)) was fixed upstream in [#662](https://github.com/LayerTwo-Labs/bip300301_enforcer/pull/662), and the fix shipped with the mainnet release.
+- Getting mainnet stable was mostly operations work: the node started from a snapshot at block 965,000 and was very slow while it validated older history. Full verification passed on November 16, with all 7 sidechain slots recorded.
+- [drivechain-observatory.xyz](https://drivechain-observatory.xyz) shows **eCash mainnet** by default since November 16. Betanet is still one click away in the network selector.
+- I checked the mainnet data against a public eCash block explorer: blocks, difficulty, hashrate, treasury balances and all 34 deposits matched.
+- Made the site much lighter: the home page makes about 97 requests every 90 seconds instead of 340, `/network` went from 8.8 s to 0.5 s, and sidechain pages load in about 150 ms instead of timing out.
+- Security work: a Next.js upgrade for a critical advisory, security headers, per-client API limits and PostgreSQL 18.7.
+- The Observatory is now listed on [whatisecash.com/resources](https://www.whatisecash.com/resources).
+- Started reviewing Bitcoin Core [#35558](https://github.com/bitcoin/bitcoin/pull/35558) (prefilled compact blocks).
+- In December I teach a course at [ISMOS](https://ismos.xyz/en/courses/nodobs-es-2026-1/), in Spanish: turning a Bitcoin Core node into an observation platform with Prometheus and Grafana.
